@@ -16,7 +16,11 @@ aptbuild:
 
 
 devbuild:
-	sudo apt-get install --force-yes -y mysql-server mysql-client libmysqlclient15-dev libc6 libpcre3 libpcre3-dev libpcrecpp0 libssl0.9.8 libssl-dev zlib1g zlib1g-dev lsb-base nginx php5-common php5-dev libmagick9-dev php5-cli php5-mysql php5-curl php5-gd php5-idn php-pear php5-imagick php5-imap php5-mcrypt php5-memcache php5-mhash php5-ming php5-pspell php5-recode php5-snmp php5-sqlite php5-tidy php5-xmlrpc php5-xsl php5-xdebug php5-json php5-geoip php5-memcached php5-fpm php5-cgi python python-dev python-pip redis-server 
+	sudo apt-add-repository 'deb http://toolbelt.herokuapp.com/ubuntu ./'
+	sudo curl http://toolbelt.herokuapp.com/apt/release.key | sudo apt-key add -
+	sudo add-apt-repository ppa:nginx/development
+	sudo apt-get update
+	sudo apt-get install --force-yes -y mysql-server mysql-client libmysqlclient15-dev libc6 libpcre3 libpcre3-dev libpcrecpp0 libssl0.9.8 libssl-dev zlib1g zlib1g-dev lsb-base nginx php5-common php5-dev libmagick9-dev php5-cli php5-mysql php5-curl php5-gd php5-idn php-pear php5-imagick php5-imap php5-mcrypt php5-memcache php5-mhash php5-ming php5-pspell php5-recode php5-snmp php5-sqlite php5-tidy php5-xmlrpc php5-xsl php5-xdebug php5-json php5-geoip php5-memcached php5-fpm php5-cgi python python-dev python-pip redis-server libpcre3-dev heroku-toolbelt graphviz ruby1.9.1 ruby1.9.1-dev libreadline-dev libruby1.9.1 sqlite3-pcre libsqlite3-dev sqlite3 libsqlite3-ruby1.9.1
 	mysql_secure_installation
 	if test ! -d ~/htdocs/redis; then cd ~/htdocs && git clone https://github.com/antirez/redis.git; fi
 	if test ! -f /usr/bin/redis-server; then cd ~/htdocs/redis && git checkout 2.4 && \
@@ -33,8 +37,35 @@ devbuild:
 	sudo make install && \
 	sudo sh -c "echo 'extension=redis.so' > /etc/php5/conf.d/redis.ini"
 	sudo sed -i 's/;pm.start_servers/pm.start_servers/g' /etc/php5/fpm/pool.d/www.conf
-	sudo /etc/init.d/nginx restart 
+	sudo sed -i 's_(;listen = 1|listen = 1).*_listen = /tmp/php-fpm.sock_g' /etc/php5/fpm/pool.d/www.conf
+	sudo sed -i 's_(;date.timezone =|date.timezone =).*_date.timezone = "Asia/Shanghai"_g' /etc/php5/fpm/php.ini
+	sudo sed -i 's/(;cgi.fix_pathinfo|^cgi.fix_pathinfo).*/cgi.fix_pathinfo = 0/g' /etc/php5/fpm/php.ini
+	sudo sed -i 's:(^zend.enable_gc).*::g' /etc/php5/fpm/php.ini
+	sudo sh -c "echo '\nzend.enable_gc=Off\n' >> /etc/php5/fpm/php.ini"
+	mkdir -p /tmp/pear/cache
+	if test ! -f /etc/php5/conf.d/imagick.ini; then sudo pecl install imagick; fi
+	if test ! -f /etc/php5/conf.d/memcache.ini; then sudo pecl install memcache; fi
+	if test ! -f /etc/php5/conf.d/apc.ini; then sudo pecl install -f APC-3.1.6; fi
+	if test ! -f /etc/php5/conf.d/apc.ini; then sudo sh -c "echo '\nextension=apc.so\napc.enabled = 1\napc.shm_size = 128M\napc.shm_segments = 1\napc.ttl = 7200\napc.user_ttl = 7200\napc.gc_ttl = 21600' > /etc/php5/conf.d/apc.ini"; fi
 	sudo /etc/init.d/php5-fpm restart
+	sudo cp ~/htdocs/osbuild/nginx/default /etc/nginx/sites-available/default
+	sudo cp ~/htdocs/osbuild/nginx/fastcgi_params /etc/nginx/fastcgi_params
+	sudo /etc/init.d/nginx restart
+	if test ! -f /usr/bin/php-shell.sh; then sudo pear install PHP_Shell-0.3.1; fi
+	if test ! -f /usr/bin/gem; then cd ~/ && wget http://files.rubyforge.vm.bytemark.co.uk/rubygems/rubygems-1.8.15.tgz && \
+	tar xzvf rubygems-1.8.15.tgz && \
+	cd rubygems-1.8.10 && \
+	sudo ruby setup.rb 
+	sudo ln -s /usr/bin/gem1.8 /usr/bin/gem
+	sudo gem update --system
+	sudo gem install foreman
+	sudo gem install heroku foreman
+	sudo easy_install -U bpython redis hiredis pyres virtualenv hyde argparse commando jinja2 markdown pyyaml pygments smartypants repoze.profile
+	sudo easy_install git://github.com/hyde/typogrify#egg=typogrify
+	heroku login
+	heroku keys
+	heroku keys:add
+
 	
 	
 	
